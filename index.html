@@ -6,9 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Bibliopolis">
-    <title>📚 Bibliopolis</title>
+    <title>📚 Bibliopolis - Con Sincronización Real</title>
     
     <style>
+        /* Mantengo todo el CSS original */
         * {
             margin: 0;
             padding: 0;
@@ -654,6 +655,28 @@
         .app-content.active {
             display: block;
         }
+
+        .config-note {
+            background: rgba(237, 137, 54, 0.1);
+            border: 1px solid rgba(237, 137, 54, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            color: #fbb040;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .config-note a {
+            color: #63b3ed;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .config-note a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -665,6 +688,11 @@
             <div class="login-subtitle">Tu ciudad personal de libros.<br>Ingresá tu código para sincronizar entre dispositivos.</div>
             <input type="text" id="userCodeInput" class="login-input" placeholder="Tu código único" maxlength="20">
             <button onclick="login()" class="login-btn" id="loginBtn">Ingresar a Bibliopolis</button>
+            
+            <div class="config-note" style="margin-top: 20px;">
+                ⚠️ Para activar la sincronización real, necesitás crear una cuenta gratuita en 
+                <a href="https://jsonbin.io" target="_blank">JSONBin.io</a> y agregar tu API Key en el código.
+            </div>
         </div>
     </div>
 
@@ -786,23 +814,308 @@
     </div>
 
     <script>
+        // ⚠️ CONFIGURACIÓN IMPORTANTE ⚠️
+        // Para activar la sincronización real:
+        // 1. Creá una cuenta gratuita en https://jsonbin.io
+        // 2. Obtené tu API Key desde el dashboard
+        // 3. Reemplazá 'TU_API_KEY_AQUI' con tu key real
+        const JSONBIN_API_KEY = '$2a$10$MaZC.wx2zeEpTOYU87HjL.LNs7zuZUOhu5ASV6vSVcfr9tf4JyaSm'; // <-- CAMBIAR ESTO
+        const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
+        
         // Variables globales
         let books = [];
         let weeklyGoal = 1;
         let startDate = new Date();
         let currentUser = null;
-
-        // Configuración de almacenamiento mejorado
-        const STORAGE_PREFIX = 'bibliopolis_';
+        let userBinId = null; // ID del bin en JSONBin para este usuario
 
         // Inicialización
         window.addEventListener('load', function() {
             checkLoginStatus();
             updateDateInfo();
-            console.log('📚 Bibliopolis v3.0 - Sistema de sincronización mejorado');
+            console.log('📚 Bibliopolis v5.0 - Sincronización con JSONBin');
         });
 
-        // Manejo de autenticación
+        // ============ FUNCIONES DE SINCRONIZACIÓN REAL ============
+        
+        async function createUserBin() {
+            if (JSONBIN_API_KEY === 'TU_API_KEY_AQUI') {
+                console.warn('⚠️ JSONBin API Key no configurada - usando solo localStorage');
+                return null;
+            }
+
+            try {
+                const response = await fetch(`${JSONBIN_BASE_URL}/b`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY,
+                        'X-Bin-Name': `bibliopolis_${currentUser}`,
+                        'X-Bin-Private': 'false'
+                    },
+                    body: JSON.stringify({
+                        user: currentUser,
+                        books: [],
+                        weeklyGoal: 1,
+                        startDate: new Date().toISOString(),
+                        lastSaved: new Date().toISOString(),
+                        version: '5.0'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Bin creado en JSONBin:', data.metadata.id);
+                    return data.metadata.id;
+                }
+            } catch (error) {
+                console.error('❌ Error creando bin:', error);
+            }
+            return null;
+        }
+
+        async function saveToCloud(userData) {
+            if (JSONBIN_API_KEY === 'TU_API_KEY_AQUI') {
+                return false;
+            }
+
+            try {
+                // Si no tenemos binId, intentar encontrarlo o crear uno nuevo
+                if (!userBinId) {
+                    userBinId = localStorage.getItem(`bibliopolis_binId_${currentUser}`);
+                    if (!userBinId) {
+                        userBinId = await createUserBin();
+                        if (userBinId) {
+                            localStorage.setItem(`bibliopolis_binId_${currentUser}`, userBinId);
+                        }
+                    }
+                }
+
+                if (!userBinId) return false;
+
+                const response = await fetch(`${JSONBIN_BASE_URL}/b/${userBinId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    console.log('✅ Datos sincronizados con JSONBin');
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ Error sincronizando:', error);
+            }
+            return false;
+        }
+
+        async function loadFromCloud() {
+            if (JSONBIN_API_KEY === 'TU_API_KEY_AQUI') {
+                return null;
+            }
+
+            try {
+                // Obtener binId guardado
+                userBinId = localStorage.getItem(`bibliopolis_binId_${currentUser}`);
+                if (!userBinId) return null;
+
+                const response = await fetch(`${JSONBIN_BASE_URL}/b/${userBinId}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Datos cargados desde JSONBin');
+                    return data.record;
+                }
+            } catch (error) {
+                console.error('❌ Error cargando desde la nube:', error);
+            }
+            return null;
+        }
+
+        // ============ FUNCIONES DE ALMACENAMIENTO ============
+
+        async function saveUserData() {
+            if (!currentUser) return;
+            
+            setSyncStatus('Sincronizando...', 'syncing');
+            
+            const userData = {
+                user: currentUser,
+                books: books,
+                weeklyGoal: weeklyGoal,
+                startDate: startDate.toISOString(),
+                lastSaved: new Date().toISOString(),
+                version: '5.0',
+                deviceId: getDeviceId()
+            };
+
+            try {
+                // 1. Siempre guardar localmente primero
+                const localKey = `bibliopolis_${currentUser}`;
+                localStorage.setItem(localKey, JSON.stringify(userData));
+                
+                // 2. Intentar sincronizar con la nube
+                const cloudSaved = await saveToCloud(userData);
+                
+                if (cloudSaved) {
+                    console.log('✅ Sincronización completa (local + nube)');
+                    setSyncStatus('✓ Sincronizado', 'success');
+                } else {
+                    console.log('✅ Guardado solo localmente');
+                    setSyncStatus('✓ Guardado local', 'success');
+                }
+                
+                // 3. Notificar a otras pestañas
+                broadcastUpdate();
+                
+            } catch (error) {
+                console.error('❌ Error al guardar:', error);
+                setSyncStatus('Error de sincronización', 'error');
+            }
+        }
+
+        async function loadUserData() {
+            if (!currentUser) return;
+            
+            setSyncStatus('Cargando datos...', 'syncing');
+            
+            try {
+                let foundData = null;
+                let source = '';
+                
+                // 1. Primero intentar cargar desde la nube
+                const cloudData = await loadFromCloud();
+                if (cloudData && cloudData.user === currentUser) {
+                    foundData = cloudData;
+                    source = 'nube';
+                }
+                
+                // 2. Si no hay datos en la nube o son más antiguos, buscar local
+                const localKey = `bibliopolis_${currentUser}`;
+                const localData = localStorage.getItem(localKey);
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    if (!foundData || (parsed.lastSaved && foundData.lastSaved && 
+                        new Date(parsed.lastSaved) > new Date(foundData.lastSaved))) {
+                        foundData = parsed;
+                        source = 'local';
+                    }
+                }
+                
+                // 3. Aplicar datos encontrados
+                if (foundData) {
+                    books = foundData.books || [];
+                    weeklyGoal = foundData.weeklyGoal || 1;
+                    startDate = foundData.startDate ? new Date(foundData.startDate) : new Date();
+                    document.getElementById('weeklyGoal').value = weeklyGoal;
+                    
+                    console.log(`✅ ${books.length} libros cargados desde ${source}`);
+                    setSyncStatus(`✓ Datos cargados (${source})`, 'success');
+                    
+                    // Si los datos vienen de local, intentar sincronizar con la nube
+                    if (source === 'local') {
+                        setTimeout(() => saveUserData(), 1000);
+                    }
+                } else {
+                    // Usuario nuevo
+                    console.log(`🆕 Usuario nuevo: ${currentUser}`);
+                    books = [];
+                    weeklyGoal = 1;
+                    startDate = new Date();
+                    setSyncStatus('✓ Bienvenido', 'success');
+                    
+                    // Guardar estado inicial
+                    await saveUserData();
+                }
+                
+                updateDisplay();
+                
+            } catch (error) {
+                console.error('❌ Error crítico:', error);
+                setSyncStatus('Error de carga', 'error');
+                
+                // Fallback seguro
+                books = [];
+                weeklyGoal = 1;
+                startDate = new Date();
+                updateDisplay();
+            }
+        }
+
+        // ============ FUNCIONES AUXILIARES ============
+
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('bibliopolis_device_id');
+            if (!deviceId) {
+                deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('bibliopolis_device_id', deviceId);
+            }
+            return deviceId;
+        }
+
+        function broadcastUpdate() {
+            try {
+                localStorage.setItem('bibliopolis_sync_signal', Date.now().toString());
+            } catch (e) {
+                // Ignorar errores de storage
+            }
+        }
+
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'bibliopolis_sync_signal' && currentUser) {
+                console.log('📡 Cambios detectados en otra pestaña');
+                setTimeout(() => {
+                    loadUserData();
+                }, 1000);
+            }
+        });
+
+        // ============ FUNCIONES DE DEBUG ============
+
+        window.debugBibliopolis = function() {
+            console.log('=== DEBUG BIBLIOPOLIS v5.0 ===');
+            console.log('Usuario:', currentUser);
+            console.log('Libros en memoria:', books.length);
+            console.log('Device ID:', getDeviceId());
+            console.log('Bin ID (JSONBin):', userBinId);
+            console.log('API Key configurada:', JSONBIN_API_KEY !== 'TU_API_KEY_AQUI' ? 'SÍ' : 'NO');
+            
+            const localKey = `bibliopolis_${currentUser}`;
+            const localData = localStorage.getItem(localKey);
+            if (localData) {
+                const parsed = JSON.parse(localData);
+                console.log('Datos locales:', parsed.books ? `${parsed.books.length} libros` : 'Sin libros');
+                console.log('Última sincronización:', parsed.lastSaved);
+            }
+            
+            console.log('===============================');
+        };
+
+        window.testSincronizacion = async function() {
+            console.log('🧪 Probando sincronización...');
+            if (JSONBIN_API_KEY === 'TU_API_KEY_AQUI') {
+                console.error('❌ Necesitás configurar tu API Key de JSONBin primero');
+                return;
+            }
+            
+            await saveUserData();
+            console.log('✅ Datos guardados');
+            
+            setTimeout(async () => {
+                await loadUserData();
+                console.log('✅ Datos cargados');
+            }, 2000);
+        };
+
+        // ============ MANEJO DE AUTENTICACIÓN ============
+
         function checkLoginStatus() {
             const savedUser = localStorage.getItem('bibliopolisUser');
             if (savedUser) {
@@ -830,7 +1143,6 @@
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="loading"></span> Conectando...';
 
-            // Limpiar y validar código
             currentUser = userCode.toLowerCase().replace(/[^a-z0-9]/g, '');
             localStorage.setItem('bibliopolisUser', currentUser);
             
@@ -846,6 +1158,7 @@
             if (confirm('¿Estás seguro que querés salir de Bibliopolis?')) {
                 localStorage.removeItem('bibliopolisUser');
                 currentUser = null;
+                userBinId = null;
                 books = [];
                 showLogin();
             }
@@ -883,96 +1196,8 @@
             }
         }
 
-        // Sistema de almacenamiento mejorado
-        async function saveUserData() {
-            if (!currentUser) return;
-            
-            setSyncStatus('Guardando datos...', 'syncing');
-            
-            const userData = {
-                user: currentUser,
-                books: books,
-                weeklyGoal: weeklyGoal,
-                startDate: startDate.toISOString(),
-                lastSaved: new Date().toISOString(),
-                version: '3.0'
-            };
+        // ============ FUNCIONES DE LA APP ============
 
-            try {
-                // Guardar en localStorage con prefijo único
-                const userKey = `${STORAGE_PREFIX}${currentUser}`;
-                localStorage.setItem(userKey, JSON.stringify(userData));
-                
-                // También guardar en sessionStorage para sync inmediato
-                sessionStorage.setItem(userKey, JSON.stringify(userData));
-                
-                console.log(`✅ Datos guardados para usuario: ${currentUser}, libros: ${books.length}`);
-                setSyncStatus('✓ Datos guardados', 'success');
-                
-            } catch (error) {
-                console.error('❌ Error al guardar:', error);
-                setSyncStatus('Error al guardar', 'error');
-            }
-        }
-
-        async function loadUserData() {
-            if (!currentUser) return;
-            
-            setSyncStatus('Cargando datos...', 'syncing');
-            
-            try {
-                const userKey = `${STORAGE_PREFIX}${currentUser}`;
-                
-                // Intentar cargar desde sessionStorage primero
-                let savedData = sessionStorage.getItem(userKey);
-                
-                // Si no está en session, buscar en localStorage
-                if (!savedData) {
-                    savedData = localStorage.getItem(userKey);
-                }
-                
-                if (savedData) {
-                    const data = JSON.parse(savedData);
-                    
-                    // Verificar que los datos sean del usuario correcto
-                    if (data.user === currentUser) {
-                        books = data.books || [];
-                        weeklyGoal = data.weeklyGoal || 1;
-                        startDate = data.startDate ? new Date(data.startDate) : new Date();
-                        document.getElementById('weeklyGoal').value = weeklyGoal;
-                        
-                        console.log(`✅ Datos cargados para usuario: ${currentUser}, libros: ${books.length}`);
-                        setSyncStatus('✓ Datos cargados', 'success');
-                    } else {
-                        throw new Error('Usuario no coincidente');
-                    }
-                } else {
-                    // Primera vez del usuario
-                    console.log(`🆕 Nuevo usuario: ${currentUser}`);
-                    startDate = new Date();
-                    books = [];
-                    weeklyGoal = 1;
-                    setSyncStatus('✓ Bienvenido a Bibliopolis', 'success');
-                    
-                    // Guardar datos iniciales
-                    await saveUserData();
-                }
-                
-                updateDisplay();
-                
-            } catch (error) {
-                console.error('❌ Error al cargar datos:', error);
-                setSyncStatus('Error al cargar', 'error');
-                
-                // Último fallback
-                startDate = new Date();
-                books = [];
-                weeklyGoal = 1;
-                updateDisplay();
-            }
-        }
-
-        // Event listeners
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const activeElement = document.activeElement;
@@ -1034,7 +1259,6 @@
             clearForm();
             updateDisplay();
             
-            // Feedback visual
             const button = document.querySelector('.btn');
             const originalText = button.textContent;
             const originalBg = button.style.background;
@@ -1080,7 +1304,6 @@
             document.getElementById('avgPages').textContent = avgPages;
             document.getElementById('progressPercent').textContent = `${progressPercent}%`;
 
-            // Actualizar círculo de progreso
             const circumference = 2 * Math.PI * 50;
             const progressCircle = document.getElementById('progressCircle');
             const offset = circumference - (progressPercent / 100) * circumference;
@@ -1191,7 +1414,6 @@
                 return;
             }
 
-            // Preparar datos para Excel
             const excelData = books.map((book, index) => {
                 const bookWeek = getBookWeek(new Date(book.dateRead));
                 return {
@@ -1205,7 +1427,6 @@
                 };
             });
 
-            // Agregar estadísticas
             const totalPages = books.reduce((sum, book) => sum + book.pages, 0);
             const avgPages = Math.round(totalPages / books.length);
             const currentWeek = getCurrentWeek();
@@ -1275,10 +1496,8 @@
                 'Timestamp': ''
             });
 
-            // Convertir a CSV
             const csvContent = convertToCSV(excelData);
             
-            // Crear y descargar archivo
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
@@ -1292,7 +1511,6 @@
             link.click();
             document.body.removeChild(link);
 
-            // Feedback visual
             const button = document.querySelector('.export-btn');
             const originalText = button.textContent;
             const originalBg = button.style.background;
@@ -1310,10 +1528,8 @@
             const headers = Object.keys(data[0]);
             const csvRows = [];
             
-            // Agregar headers
             csvRows.push(headers.join(','));
             
-            // Agregar datos
             for (const row of data) {
                 const values = headers.map(header => {
                     const value = row[header] || '';
@@ -1325,15 +1541,6 @@
             
             return csvRows.join('\n');
         }
-
-        // Debug helper
-        window.debugBibliopolis = function() {
-            console.log('=== DEBUG BIBLIOPOLIS ===');
-            console.log('Usuario actual:', currentUser);
-            console.log('Libros:', books.length);
-            console.log('Datos en localStorage:', localStorage.getItem(`${STORAGE_PREFIX}${currentUser}`));
-            console.log('========================');
-        };
     </script>
 </body>
 </html>
