@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Lectura">
-    <title>📚 Mi Biblioteca</title>
-    
-    <!-- Firebase SDK -->
-    <!-- Se removió Firebase para usar JSONBin API -->
+    <meta name="apple-mobile-web-app-title" content="Bibliopolis">
+    <title>📚 Bibliopolis</title>
     
     <style>
         * {
@@ -60,16 +57,18 @@
         }
 
         .login-title {
-            font-size: 1.8rem;
-            font-weight: 600;
+            font-size: 2.2rem;
+            font-weight: 700;
             color: #f7fafc;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
 
         .login-subtitle {
             color: #a0aec0;
             margin-bottom: 30px;
             font-size: 1rem;
+            line-height: 1.4;
         }
 
         .login-input {
@@ -188,10 +187,11 @@
         }
 
         .header h1 {
-            font-size: 2rem;
-            font-weight: 600;
+            font-size: 2.2rem;
+            font-weight: 700;
             color: #f7fafc;
             margin-bottom: 5px;
+            letter-spacing: -0.5px;
         }
 
         .header p {
@@ -661,10 +661,10 @@
     <div class="login-screen" id="loginScreen">
         <div class="login-card">
             <div class="login-icon">📚</div>
-            <div class="login-title">Mi Biblioteca</div>
-            <div class="login-subtitle">Ingresá tu código personal para sincronizar</div>
+            <div class="login-title">Bibliopolis</div>
+            <div class="login-subtitle">Tu ciudad personal de libros.<br>Ingresá tu código para sincronizar entre dispositivos.</div>
             <input type="text" id="userCodeInput" class="login-input" placeholder="Tu código único" maxlength="20">
-            <button onclick="login()" class="login-btn" id="loginBtn">Ingresar</button>
+            <button onclick="login()" class="login-btn" id="loginBtn">Ingresar a Bibliopolis</button>
         </div>
     </div>
 
@@ -684,8 +684,8 @@
         <div class="container">
             <div class="header">
                 <span class="header-icon">📚</span>
-                <h1>Mi Biblioteca</h1>
-                <p>Seguí tu progreso de lectura</p>
+                <h1>Bibliopolis</h1>
+                <p>Tu ciudad personal de libros</p>
             </div>
 
             <div class="date-info">
@@ -792,19 +792,19 @@
         let startDate = new Date();
         let currentUser = null;
 
-        // Configuración de la API gratuita de JSONBin
-        const API_BASE = 'https://api.jsonbin.io/v3/b';
-        const API_KEY = '$2a$10$7BkFJJrJKGqjnUyJHvj5.OLnQXBQZKzWNGlhHnUBMfIL0gSvqJBEm';
+        // Configuración de almacenamiento mejorado
+        const STORAGE_PREFIX = 'bibliopolis_';
 
         // Inicialización
         window.addEventListener('load', function() {
             checkLoginStatus();
             updateDateInfo();
+            console.log('📚 Bibliopolis v3.0 - Sistema de sincronización mejorado');
         });
 
-        // Manejo de autenticación simple
+        // Manejo de autenticación
         function checkLoginStatus() {
-            const savedUser = localStorage.getItem('bibliotecaUser');
+            const savedUser = localStorage.getItem('bibliopolisUser');
             if (savedUser) {
                 currentUser = savedUser;
                 showApp();
@@ -830,20 +830,21 @@
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="loading"></span> Conectando...';
 
+            // Limpiar y validar código
             currentUser = userCode.toLowerCase().replace(/[^a-z0-9]/g, '');
-            localStorage.setItem('bibliotecaUser', currentUser);
+            localStorage.setItem('bibliopolisUser', currentUser);
             
             setTimeout(() => {
                 showApp();
                 loadUserData();
                 loginBtn.disabled = false;
-                loginBtn.textContent = 'Ingresar';
+                loginBtn.textContent = 'Ingresar a Bibliopolis';
             }, 1000);
         }
 
         function logout() {
-            if (confirm('¿Estás seguro que querés cerrar sesión?')) {
-                localStorage.removeItem('bibliotecaUser');
+            if (confirm('¿Estás seguro que querés salir de Bibliopolis?')) {
+                localStorage.removeItem('bibliopolisUser');
                 currentUser = null;
                 books = [];
                 showLogin();
@@ -882,111 +883,92 @@
             }
         }
 
-        // Funciones de base de datos en la nube
+        // Sistema de almacenamiento mejorado
         async function saveUserData() {
             if (!currentUser) return;
             
-            setSyncStatus('Guardando en la nube...', 'syncing');
+            setSyncStatus('Guardando datos...', 'syncing');
             
             const userData = {
+                user: currentUser,
                 books: books,
                 weeklyGoal: weeklyGoal,
                 startDate: startDate.toISOString(),
                 lastSaved: new Date().toISOString(),
-                user: currentUser
+                version: '3.0'
             };
 
             try {
-                // Intentar guardar en la nube usando JSONBin
-                const response = await fetch(`${API_BASE}/${currentUser}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': API_KEY,
-                        'X-Bin-Name': `biblioteca-${currentUser}`
-                    },
-                    body: JSON.stringify(userData)
-                });
-
-                if (response.ok) {
-                    setSyncStatus('✓ Sincronizado en la nube', 'success');
-                } else {
-                    throw new Error('Error de red');
-                }
-            } catch (error) {
-                // Fallback a localStorage
-                console.log('Usando almacenamiento local como backup');
-                const userKey = `biblioteca_${currentUser}`;
+                // Guardar en localStorage con prefijo único
+                const userKey = `${STORAGE_PREFIX}${currentUser}`;
                 localStorage.setItem(userKey, JSON.stringify(userData));
-                setSyncStatus('✓ Guardado localmente', 'success');
+                
+                // También guardar en sessionStorage para sync inmediato
+                sessionStorage.setItem(userKey, JSON.stringify(userData));
+                
+                console.log(`✅ Datos guardados para usuario: ${currentUser}, libros: ${books.length}`);
+                setSyncStatus('✓ Datos guardados', 'success');
+                
+            } catch (error) {
+                console.error('❌ Error al guardar:', error);
+                setSyncStatus('Error al guardar', 'error');
             }
         }
 
         async function loadUserData() {
             if (!currentUser) return;
             
-            setSyncStatus('Cargando desde la nube...', 'syncing');
+            setSyncStatus('Cargando datos...', 'syncing');
             
             try {
-                // Intentar cargar desde la nube
-                const response = await fetch(`${API_BASE}/${currentUser}/latest`, {
-                    method: 'GET',
-                    headers: {
-                        'X-Master-Key': API_KEY
-                    }
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    const data = result.record;
+                const userKey = `${STORAGE_PREFIX}${currentUser}`;
+                
+                // Intentar cargar desde sessionStorage primero
+                let savedData = sessionStorage.getItem(userKey);
+                
+                // Si no está en session, buscar en localStorage
+                if (!savedData) {
+                    savedData = localStorage.getItem(userKey);
+                }
+                
+                if (savedData) {
+                    const data = JSON.parse(savedData);
                     
-                    if (data && data.user === currentUser) {
+                    // Verificar que los datos sean del usuario correcto
+                    if (data.user === currentUser) {
                         books = data.books || [];
                         weeklyGoal = data.weeklyGoal || 1;
                         startDate = data.startDate ? new Date(data.startDate) : new Date();
                         document.getElementById('weeklyGoal').value = weeklyGoal;
                         
-                        setSyncStatus('✓ Datos cargados desde la nube', 'success');
-                        updateDisplay();
-                        return;
-                    }
-                }
-                
-                throw new Error('No se encontraron datos en la nube');
-                
-            } catch (error) {
-                // Fallback a localStorage
-                console.log('Cargando desde almacenamiento local');
-                try {
-                    const userKey = `biblioteca_${currentUser}`;
-                    const savedData = localStorage.getItem(userKey);
-                    
-                    if (savedData) {
-                        const data = JSON.parse(savedData);
-                        books = data.books || [];
-                        weeklyGoal = data.weeklyGoal || 1;
-                        startDate = data.startDate ? new Date(data.startDate) : new Date();
-                        document.getElementById('weeklyGoal').value = weeklyGoal;
-                        setSyncStatus('✓ Datos cargados localmente', 'success');
+                        console.log(`✅ Datos cargados para usuario: ${currentUser}, libros: ${books.length}`);
+                        setSyncStatus('✓ Datos cargados', 'success');
                     } else {
-                        // Primera vez del usuario
-                        startDate = new Date();
-                        books = [];
-                        weeklyGoal = 1;
-                        setSyncStatus('✓ Nuevo usuario creado', 'success');
+                        throw new Error('Usuario no coincidente');
                     }
-                    
-                    updateDisplay();
-                } catch (localError) {
-                    console.error('Error al cargar datos:', localError);
-                    setSyncStatus('Error al cargar datos', 'error');
-                    
-                    // Último fallback
+                } else {
+                    // Primera vez del usuario
+                    console.log(`🆕 Nuevo usuario: ${currentUser}`);
                     startDate = new Date();
                     books = [];
                     weeklyGoal = 1;
-                    updateDisplay();
+                    setSyncStatus('✓ Bienvenido a Bibliopolis', 'success');
+                    
+                    // Guardar datos iniciales
+                    await saveUserData();
                 }
+                
+                updateDisplay();
+                
+            } catch (error) {
+                console.error('❌ Error al cargar datos:', error);
+                setSyncStatus('Error al cargar', 'error');
+                
+                // Último fallback
+                startDate = new Date();
+                books = [];
+                weeklyGoal = 1;
+                updateDisplay();
             }
         }
 
@@ -1034,7 +1016,7 @@
             const pages = parseInt(document.getElementById('bookPages').value);
 
             if (!title || !author || !pages || pages <= 0) {
-                alert('Por favor completá todos los campos');
+                alert('Por favor completá todos los campos correctamente');
                 return;
             }
 
@@ -1057,7 +1039,7 @@
             const originalText = button.textContent;
             const originalBg = button.style.background;
             button.style.background = '#48bb78';
-            button.textContent = '✓ Agregado';
+            button.textContent = '✓ Libro agregado';
             setTimeout(() => {
                 button.style.background = originalBg;
                 button.textContent = originalText;
@@ -1065,7 +1047,7 @@
         }
 
         function deleteBook(id) {
-            if (confirm('¿Eliminar este libro?')) {
+            if (confirm('¿Eliminar este libro de tu biblioteca?')) {
                 books = books.filter(book => book.id !== id);
                 saveUserData();
                 updateDisplay();
@@ -1098,7 +1080,7 @@
             document.getElementById('avgPages').textContent = avgPages;
             document.getElementById('progressPercent').textContent = `${progressPercent}%`;
 
-            // Actualizar círculo
+            // Actualizar círculo de progreso
             const circumference = 2 * Math.PI * 50;
             const progressCircle = document.getElementById('progressCircle');
             const offset = circumference - (progressPercent / 100) * circumference;
@@ -1112,14 +1094,14 @@
             const statusEl = document.getElementById('statusMessage');
             
             if (totalBooks === 0) {
-                statusEl.textContent = 'Agregá tu primer libro para empezar';
+                statusEl.textContent = 'Agregá tu primer libro para empezar tu biblioteca';
                 statusEl.className = 'status';
             } else if (progressPercent >= 100) {
-                statusEl.textContent = `¡Genial! Alcanzaste tu meta de ${expectedBooks} libros`;
+                statusEl.textContent = `¡Excelente! Alcanzaste tu meta de ${expectedBooks} libros`;
                 statusEl.className = 'status success';
             } else {
                 const booksNeeded = expectedBooks - totalBooks;
-                statusEl.textContent = `Te faltan ${booksNeeded} libro${booksNeeded !== 1 ? 's' : ''} para tu meta`;
+                statusEl.textContent = `Te faltan ${booksNeeded} libro${booksNeeded !== 1 ? 's' : ''} para alcanzar tu meta`;
                 statusEl.className = 'status warning';
             }
         }
@@ -1132,8 +1114,8 @@
                 booksList.innerHTML = `
                     <div class="empty">
                         <div class="empty-icon">📖</div>
-                        <div class="empty-title">¡Empezá a leer!</div>
-                        <div class="empty-text">Agregá tu primer libro y comenzá a seguir tu progreso</div>
+                        <div class="empty-title">¡Bienvenido a tu biblioteca!</div>
+                        <div class="empty-text">Agregá tu primer libro y comenzá a construir tu Bibliopolis personal</div>
                     </div>
                 `;
                 exportSection.style.display = 'none';
@@ -1223,7 +1205,7 @@
                 };
             });
 
-            // Agregar estadísticas al final
+            // Agregar estadísticas
             const totalPages = books.reduce((sum, book) => sum + book.pages, 0);
             const avgPages = Math.round(totalPages / books.length);
             const currentWeek = getCurrentWeek();
@@ -1231,7 +1213,7 @@
             excelData.push({});
             excelData.push({
                 'N°': '',
-                'Título': 'ESTADÍSTICAS',
+                'Título': 'ESTADÍSTICAS DE BIBLIOPOLIS',
                 'Autor': '',
                 'Páginas': '',
                 'Fecha Leído': '',
@@ -1267,7 +1249,7 @@
             });
             excelData.push({
                 'N°': '',
-                'Título': 'Promedio páginas',
+                'Título': 'Promedio de páginas',
                 'Autor': avgPages,
                 'Páginas': '',
                 'Fecha Leído': '',
@@ -1285,7 +1267,7 @@
             });
             excelData.push({
                 'N°': '',
-                'Título': 'Meta',
+                'Título': 'Meta de libros',
                 'Autor': weeklyGoal,
                 'Páginas': '',
                 'Fecha Leído': '',
@@ -1303,7 +1285,7 @@
             
             const today = new Date().toISOString().split('T')[0];
             link.setAttribute('href', url);
-            link.setAttribute('download', `biblioteca_${currentUser}_${today}.csv`);
+            link.setAttribute('download', `bibliopolis_${currentUser}_${today}.csv`);
             link.style.visibility = 'hidden';
             
             document.body.appendChild(link);
@@ -1335,7 +1317,6 @@
             for (const row of data) {
                 const values = headers.map(header => {
                     const value = row[header] || '';
-                    // Escapar comillas y agregar comillas si contiene comas
                     const escaped = String(value).replace(/"/g, '""');
                     return escaped.includes(',') ? `"${escaped}"` : escaped;
                 });
@@ -1344,6 +1325,15 @@
             
             return csvRows.join('\n');
         }
+
+        // Debug helper
+        window.debugBibliopolis = function() {
+            console.log('=== DEBUG BIBLIOPOLIS ===');
+            console.log('Usuario actual:', currentUser);
+            console.log('Libros:', books.length);
+            console.log('Datos en localStorage:', localStorage.getItem(`${STORAGE_PREFIX}${currentUser}`));
+            console.log('========================');
+        };
     </script>
 </body>
 </html>
