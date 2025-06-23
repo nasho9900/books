@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lectura">
+    <title>📚 Mi Biblioteca</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0 30px;
+        }
+
+        .header-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #f7fafc;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #a0aec0;
+            font-size: 1rem;
+        }
+
+        .date-info {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+
+        .date-main {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f7fafc;
+            margin-bottom: 8px;
+        }
+
+        .date-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: #cbd5e0;
+        }
+
+        .date-stat {
+            text-align: center;
+        }
+
+        .date-number {
+            font-weight: 600;
+            color: #63b3ed;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .goal-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .goal-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .goal-label {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .goal-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 8px 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #f7fafc;
+            width: 70px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .goal-input:focus {
+            outline: none;
+            border-color: #63b3ed;
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.05);
+        }
+
+        .goal-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .goal-suffix {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .progress-circle {
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+            position: relative;
+        }
+
+        .progress-circle svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+        }
+
+        .progress-circle circle {
+            fill: none;
+            stroke-width: 8;
+        }
+
+        .progress-bg {
+            stroke: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-bar {
+            stroke: #63b3ed;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.6s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .progress-percent {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f7fafc;
+            display: block;
+        }
+
+        .progress-label {
+            font-size: 0.8rem;
+            color: #a0aec0;
+            margin-top: 2px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .stat:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f7fafc;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #a0aec0;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        .status {
+            background: rgba(99, 179, 237, 0.1);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            color: #90cdf4;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        .status.success {
+            background: rgba(72, 187, 120, 0.1);
+            border-color: rgba(72, 187, 120, 0.3);
+            color: #9ae6b4;
+        }
+
+        .status.warning {
+            background: rgba(237, 137, 54, 0.1);
+            border-color: rgba(237, 137, 54, 0.3);
+            color: #fbb040;
+        }
+
+        .form-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #f7fafc;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #cbd5e0;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 1rem;
+            color: #f7fafc;
+            transition: all 0.2s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #63b3ed;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1);
+        }
+
+        .input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn {
+            width: 100%;
+            background: #63b3ed;
+            color: #1a202c;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .btn:hover {
+            background: #4299e1;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #f7fafc;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .book {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .book:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .book-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .book-info {
+            flex: 1;
+        }
+
+        .book-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f7fafc;
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .book-author {
+            color: #a0aec0;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+
+        .book-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.8rem;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .book-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(72, 187, 120, 0.2);
+            color: #9ae6b4;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .book-badge.behind {
+            background: rgba(237, 137, 54, 0.2);
+            border-color: rgba(237, 137, 54, 0.3);
+            color: #fbb040;
+        }
+
+        .delete-btn {
+            background: rgba(245, 101, 101, 0.2);
+            color: #fc8181;
+            border: 1px solid rgba(245, 101, 101, 0.3);
+            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .delete-btn:hover {
+            background: rgba(245, 101, 101, 0.3);
+            transform: scale(1.1);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.7;
+        }
+
+        .empty-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #cbd5e0;
+            margin-bottom: 8px;
+        }
+
+        .empty-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .export-section {
+            margin-top: 20px;
+            padding-bottom: 40px;
+        }
+
+        .export-btn {
+            width: 100%;
+            background: rgba(72, 187, 120, 0.2);
+            color: #9ae6b4;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .export-btn:hover {
+            background: rgba(72, 187, 120, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+            .container {
+                max-width: 480px;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <span class="header-icon">📚</span>
+            <h1>Mi Biblioteca</h1>
+            <p>Seguí tu progreso de lectura</p>
+        </div>
+
+        <div class="date-info">
+            <div class="date-main" id="currentDate">Cargando fecha...</div>
+            <div class="date-stats">
+                <div class="date-stat">
+                    <div><span class="date-number" id="daysToEndYear">0</span> días</div>
+                    <div>para fin de año</div>
+                </div>
+                <div class="date-stat">
+                    <div><span class="date-number" id="weeksToEndYear">0</span> semanas</div>
+                    <div>restantes</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="goal-section">
+                <div class="goal-header">
+                    <div class="goal-label">Meta:</div>
+                    <input type="number" id="weeklyGoal" class="goal-input" value="1" min="1" max="999">
+                    <div class="goal-suffix">libros</div>
+                </div>
+            </div>
+
+            <div class="progress-circle">
+                <svg>
+                    <circle class="progress-bg" cx="60" cy="60" r="50"></circle>
+                    <circle class="progress-bar" cx="60" cy="60" r="50" 
+                            stroke-dasharray="0 314" id="progressCircle"></circle>
+                </svg>
+                <div class="progress-text">
+                    <span class="progress-percent" id="progressPercent">0%</span>
+                    <div class="progress-label">completado</div>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-number" id="totalBooks">0</span>
+                    <div class="stat-label">Libros</div>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="totalPages">0</span>
+                    <div class="stat-label">Páginas</div>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="currentWeek">1</span>
+                    <div class="stat-label">Semana</div>
+                </div>
+                <div class="stat">
+                    <span class="stat-number" id="avgPages">0</span>
+                    <div class="stat-label">Promedio</div>
+                </div>
+            </div>
+
+            <div class="status" id="statusMessage">
+                Agregá tu primer libro para empezar
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="form-title">Agregar Libro</div>
+            
+            <div class="input-group">
+                <label class="input-label">Título</label>
+                <input type="text" id="bookTitle" class="input" placeholder="Nombre del libro">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Autor</label>
+                <input type="text" id="bookAuthor" class="input" placeholder="Autor del libro">
+            </div>
+
+            <div class="input-group">
+                <label class="input-label">Páginas</label>
+                <input type="number" id="bookPages" class="input" placeholder="Número de páginas" min="1">
+            </div>
+
+            <button onclick="addBook()" class="btn">Agregar Libro</button>
+        </div>
+
+        <div class="section-title">Libros Leídos</div>
+        <div id="booksList">
+            <div class="empty">
+                <div class="empty-icon">📖</div>
+                <div class="empty-title">¡Empezá a leer!</div>
+                <div class="empty-text">Agregá tu primer libro y comenzá a seguir tu progreso</div>
+            </div>
+        </div>
+
+        <div class="export-section" id="exportSection" style="display: none;">
+            <button onclick="exportToExcel()" class="export-btn">
+                📊 Exportar a Excel
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let books = [];
+        let weeklyGoal = 1;
+        let startDate = new Date();
+
+        window.addEventListener('load', function() {
+            loadData();
+            updateDateInfo();
+            updateDisplay();
+        });
+
+        document.getElementById('weeklyGoal').addEventListener('input', function() {
+            weeklyGoal = parseInt(this.value) || 1;
+            saveData();
+            updateDisplay();
+        });
+
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && ['bookTitle', 'bookAuthor', 'bookPages'].includes(e.target.id)) {
+                addBook();
+            }
+        });
+
+        function updateDateInfo() {
+            const now = new Date();
+            const endOfYear = new Date(now.getFullYear(), 11, 31); // 31 de diciembre
+            
+            // Fecha actual
+            const currentDateStr = now.toLocaleDateString('es-AR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            
+            // Días hasta fin de año
+            const diffTime = endOfYear - now;
+            const daysToEnd = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const weeksToEnd = Math.ceil(daysToEnd / 7);
+            
+            document.getElementById('currentDate').textContent = currentDateStr;
+            document.getElementById('daysToEndYear').textContent = daysToEnd;
+            document.getElementById('weeksToEndYear').textContent = weeksToEnd;
+        }
+
+        function addBook() {
+            const title = document.getElementById('bookTitle').value.trim();
+            const author = document.getElementById('bookAuthor').value.trim();
+            const pages = parseInt(document.getElementById('bookPages').value);
+
+            if (!title || !author || !pages || pages <= 0) {
+                alert('Por favor completá todos los campos');
+                return;
+            }
+
+            const book = {
+                id: Date.now(),
+                title: title,
+                author: author,
+                pages: pages,
+                dateRead: new Date().toISOString().split('T')[0],
+                timestamp: new Date().toISOString()
+            };
+
+            books.unshift(book);
+            saveData();
+            clearForm();
+            updateDisplay();
+            
+            // Feedback visual
+            const button = document.querySelector('.btn');
+            const originalText = button.textContent;
+            const originalBg = button.style.background;
+            button.style.background = '#48bb78';
+            button.textContent = '✓ Agregado';
+            setTimeout(() => {
+                button.style.background = originalBg;
+                button.textContent = originalText;
+            }, 1500);
+        }
+
+        function deleteBook(id) {
+            if (confirm('¿Eliminar este libro?')) {
+                books = books.filter(book => book.id !== id);
+                saveData();
+                updateDisplay();
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('bookTitle').value = '';
+            document.getElementById('bookAuthor').value = '';
+            document.getElementById('bookPages').value = '';
+            document.getElementById('bookTitle').focus();
+        }
+
+        function updateDisplay() {
+            updateStats();
+            renderBooks();
+        }
+
+        function updateStats() {
+            const totalBooks = books.length;
+            const totalPages = books.reduce((sum, book) => sum + book.pages, 0);
+            const currentWeek = getCurrentWeek();
+            const expectedBooks = weeklyGoal; // Ahora es meta total, no por semana
+            const progressPercent = expectedBooks > 0 ? Math.min(100, Math.round((totalBooks / expectedBooks) * 100)) : 0;
+            const avgPages = totalBooks > 0 ? Math.round(totalPages / totalBooks) : 0;
+
+            document.getElementById('totalBooks').textContent = totalBooks;
+            document.getElementById('totalPages').textContent = totalPages.toLocaleString();
+            document.getElementById('currentWeek').textContent = currentWeek;
+            document.getElementById('avgPages').textContent = avgPages;
+            document.getElementById('progressPercent').textContent = `${progressPercent}%`;
+
+            // Actualizar círculo
+            const circumference = 2 * Math.PI * 50;
+            const progressCircle = document.getElementById('progressCircle');
+            const offset = circumference - (progressPercent / 100) * circumference;
+            progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+            progressCircle.style.strokeDashoffset = offset;
+
+            updateStatusMessage(totalBooks, expectedBooks, progressPercent);
+        }
+
+        function updateStatusMessage(totalBooks, expectedBooks, progressPercent) {
+            const statusEl = document.getElementById('statusMessage');
+            
+            if (totalBooks === 0) {
+                statusEl.textContent = 'Agregá tu primer libro para empezar';
+                statusEl.className = 'status';
+            } else if (progressPercent >= 100) {
+                statusEl.textContent = `¡Genial! Alcanzaste tu meta de ${expectedBooks} libros`;
+                statusEl.className = 'status success';
+            } else {
+                const booksNeeded = expectedBooks - totalBooks;
+                statusEl.textContent = `Te faltan ${booksNeeded} libro${booksNeeded !== 1 ? 's' : ''} para tu meta`;
+                statusEl.className = 'status warning';
+            }
+        }
+
+        function renderBooks() {
+            const booksList = document.getElementById('booksList');
+            const exportSection = document.getElementById('exportSection');
+            
+            if (books.length === 0) {
+                booksList.innerHTML = `
+                    <div class="empty">
+                        <div class="empty-icon">📖</div>
+                        <div class="empty-title">¡Empezá a leer!</div>
+                        <div class="empty-text">Agregá tu primer libro y comenzá a seguir tu progreso</div>
+                    </div>
+                `;
+                exportSection.style.display = 'none';
+                return;
+            }
+
+            exportSection.style.display = 'block';
+
+            booksList.innerHTML = books.map(book => {
+                const bookWeek = getBookWeek(new Date(book.dateRead));
+                const isOnSchedule = books.length <= weeklyGoal;
+                
+                return `
+                    <div class="book fade-in">
+                        <div class="book-header">
+                            <div class="book-info">
+                                <div class="book-title">${book.title}</div>
+                                <div class="book-author">por ${book.author}</div>
+                                <div class="book-meta">
+                                    <span>${book.pages} páginas</span>
+                                    <span>${formatDate(book.dateRead)}</span>
+                                </div>
+                                <span class="book-badge ${isOnSchedule ? '' : 'behind'}">
+                                    Semana ${bookWeek}
+                                </span>
+                            </div>
+                            <button class="delete-btn" onclick="deleteBook(${book.id})">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function exportToExcel() {
+            if (books.length === 0) {
+                alert('No hay libros para exportar');
+                return;
+            }
+
+            // Preparar datos para Excel
+            const excelData = books.map((book, index) => {
+                const bookWeek = getBookWeek(new Date(book.dateRead));
+                return {
+                    'N°': index + 1,
+                    'Título': book.title,
+                    'Autor': book.author,
+                    'Páginas': book.pages,
+                    'Fecha Leído': book.dateRead,
+                    'Semana': bookWeek,
+                    'Timestamp': book.timestamp
+                };
+            });
+
+            // Agregar estadísticas al final
+            const totalPages = books.reduce((sum, book) => sum + book.pages, 0);
+            const avgPages = Math.round(totalPages / books.length);
+            const currentWeek = getCurrentWeek();
+
+            excelData.push({});
+            excelData.push({
+                'N°': '',
+                'Título': 'ESTADÍSTICAS',
+                'Autor': '',
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+            excelData.push({
+                'N°': '',
+                'Título': 'Total de libros',
+                'Autor': books.length,
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+            excelData.push({
+                'N°': '',
+                'Título': 'Total de páginas',
+                'Autor': totalPages,
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+            excelData.push({
+                'N°': '',
+                'Título': 'Promedio páginas',
+                'Autor': avgPages,
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+            excelData.push({
+                'N°': '',
+                'Título': 'Semana actual',
+                'Autor': currentWeek,
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+            excelData.push({
+                'N°': '',
+                'Título': 'Meta',
+                'Autor': weeklyGoal,
+                'Páginas': '',
+                'Fecha Leído': '',
+                'Semana': '',
+                'Timestamp': ''
+            });
+
+            // Convertir a CSV
+            const csvContent = convertToCSV(excelData);
+            
+            // Crear y descargar archivo
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            const today = new Date().toISOString().split('T')[0];
+            link.setAttribute('href', url);
+            link.setAttribute('download', `mi_biblioteca_${today}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // Feedback visual
+            const button = document.querySelector('.export-btn');
+            const originalText = button.textContent;
+            const originalBg = button.style.background;
+            button.style.background = 'rgba(72, 187, 120, 0.4)';
+            button.textContent = '✓ Exportado';
+            setTimeout(() => {
+                button.style.background = originalBg;
+                button.textContent = originalText;
+            }, 2000);
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvRows = [];
+            
+            // Agregar headers
+            csvRows.push(headers.join(','));
+            
+            // Agregar datos
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const value = row[header] || '';
+                    // Escapar comillas y agregar comillas si contiene comas
+                    const escaped = String(value).replace(/"/g, '""');
+                    return escaped.includes(',') ? `"${escaped}"` : escaped;
+                });
+                csvRows.push(values.join(','));
+            }
+            
+            return csvRows.join('\n');
+        }
+
+        function getCurrentWeek() {
+            const now = new Date();
+            const diffTime = now - startDate;
+            const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000));
+            return Math.max(1, Math.floor(diffDays / 7) + 1);
+        }
+
+        function getBookWeek(bookDate) {
+            const diffTime = bookDate - startDate;
+            const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000));
+            return Math.max(1, Math.floor(diffDays / 7) + 1);
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const bookDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const yesterdayDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+            
+            if (bookDate.getTime() === todayDate.getTime()) {
+                return 'Hoy';
+            } else if (bookDate.getTime() === yesterdayDate.getTime()) {
+                return 'Ayer';
+            } else {
+                return date.toLocaleDateString('es-AR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+                });
+            }
+        }
+
+        function saveData() {
+            const data = {
+                books: books,
+                weeklyGoal: weeklyGoal,
+                startDate: startDate.toISOString(),
+                lastSaved: new Date().toISOString()
+            };
+            localStorage.setItem('readingTracker', JSON.stringify(data));
+        }
+
+        function loadData() {
+            try {
+                const savedData = localStorage.getItem('readingTracker');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    books = data.books || [];
+                    weeklyGoal = data.weeklyGoal || 1;
+                    startDate = data.startDate ? new Date(data.startDate) : new Date();
+                    document.getElementById('weeklyGoal').value = weeklyGoal;
+                } else {
+                    startDate = new Date();
+                    saveData();
+                }
+            } catch (error) {
+                startDate = new Date();
+                books = [];
+                weeklyGoal = 1;
+                saveData();
+            }
+        }
+    </script>
+</body>
+</html>
