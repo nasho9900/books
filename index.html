@@ -9,8 +9,7 @@
     <title>📚 Mi Biblioteca</title>
     
     <!-- Firebase SDK -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+    <!-- Se removió Firebase para usar JSONBin API -->
     
     <style>
         * {
@@ -787,25 +786,15 @@
     </div>
 
     <script>
-        // Configuración de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBkX9X9X9X9X9X9X9X9X9X9X9X9X9X9X9X",
-            authDomain: "biblioteca-demo.firebaseapp.com",
-            projectId: "biblioteca-demo",
-            storageBucket: "biblioteca-demo.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef123456789abcdef"
-        };
-
-        // Inicializar Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-
         // Variables globales
         let books = [];
         let weeklyGoal = 1;
         let startDate = new Date();
         let currentUser = null;
+
+        // Configuración de la API gratuita de JSONBin
+        const API_BASE = 'https://api.jsonbin.io/v3/b';
+        const API_KEY = '$2a$10$7BkFJJrJKGqjnUyJHvj5.OLnQXBQZKzWNGlhHnUBMfIL0gSvqJBEm';
 
         // Inicialización
         window.addEventListener('load', function() {
@@ -893,59 +882,111 @@
             }
         }
 
-        // Simulación de base de datos (usando localStorage como fallback)
-        function saveUserData() {
+        // Funciones de base de datos en la nube
+        async function saveUserData() {
             if (!currentUser) return;
             
-            setSyncStatus('Guardando datos...', 'syncing');
+            setSyncStatus('Guardando en la nube...', 'syncing');
             
             const userData = {
                 books: books,
                 weeklyGoal: weeklyGoal,
                 startDate: startDate.toISOString(),
-                lastSaved: new Date().toISOString()
+                lastSaved: new Date().toISOString(),
+                user: currentUser
             };
 
-            // Simular guardado en la nube (usando localStorage)
-            const userKey = `biblioteca_${currentUser}`;
-            localStorage.setItem(userKey, JSON.stringify(userData));
-            
-            setTimeout(() => {
-                setSyncStatus('✓ Sincronizado', 'success');
-            }, 500);
+            try {
+                // Intentar guardar en la nube usando JSONBin
+                const response = await fetch(`${API_BASE}/${currentUser}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': API_KEY,
+                        'X-Bin-Name': `biblioteca-${currentUser}`
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    setSyncStatus('✓ Sincronizado en la nube', 'success');
+                } else {
+                    throw new Error('Error de red');
+                }
+            } catch (error) {
+                // Fallback a localStorage
+                console.log('Usando almacenamiento local como backup');
+                const userKey = `biblioteca_${currentUser}`;
+                localStorage.setItem(userKey, JSON.stringify(userData));
+                setSyncStatus('✓ Guardado localmente', 'success');
+            }
         }
 
-        function loadUserData() {
+        async function loadUserData() {
             if (!currentUser) return;
             
-            setSyncStatus('Cargando datos...', 'syncing');
+            setSyncStatus('Cargando desde la nube...', 'syncing');
             
             try {
-                const userKey = `biblioteca_${currentUser}`;
-                const savedData = localStorage.getItem(userKey);
-                
-                if (savedData) {
-                    const data = JSON.parse(savedData);
-                    books = data.books || [];
-                    weeklyGoal = data.weeklyGoal || 1;
-                    startDate = data.startDate ? new Date(data.startDate) : new Date();
-                    document.getElementById('weeklyGoal').value = weeklyGoal;
+                // Intentar cargar desde la nube
+                const response = await fetch(`${API_BASE}/${currentUser}/latest`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Master-Key': API_KEY
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    const data = result.record;
+                    
+                    if (data && data.user === currentUser) {
+                        books = data.books || [];
+                        weeklyGoal = data.weeklyGoal || 1;
+                        startDate = data.startDate ? new Date(data.startDate) : new Date();
+                        document.getElementById('weeklyGoal').value = weeklyGoal;
+                        
+                        setSyncStatus('✓ Datos cargados desde la nube', 'success');
+                        updateDisplay();
+                        return;
+                    }
                 }
                 
-                setTimeout(() => {
-                    setSyncStatus('✓ Datos cargados', 'success');
-                    updateDisplay();
-                }, 500);
+                throw new Error('No se encontraron datos en la nube');
                 
             } catch (error) {
-                console.error('Error al cargar datos:', error);
-                setSyncStatus('Error al cargar', 'error');
-                
-                // Fallback
-                startDate = new Date();
-                books = [];
-                weeklyGoal = 1;
-                updateDisplay();
+                // Fallback a localStorage
+                console.log('Cargando desde almacenamiento local');
+                try {
+                    const userKey = `biblioteca_${currentUser}`;
+                    const savedData = localStorage.getItem(userKey);
+                    
+                    if (savedData) {
+                        const data = JSON.parse(savedData);
+                        books = data.books || [];
+                        weeklyGoal = data.weeklyGoal || 1;
+                        startDate = data.startDate ? new Date(data.startDate) : new Date();
+                        document.getElementById('weeklyGoal').value = weeklyGoal;
+                        setSyncStatus('✓ Datos cargados localmente', 'success');
+                    } else {
+                        // Primera vez del usuario
+                        startDate = new Date();
+                        books = [];
+                        weeklyGoal = 1;
+                        setSyncStatus('✓ Nuevo usuario creado', 'success');
+                    }
+                    
+                    updateDisplay();
+                } catch (localError) {
+                    console.error('Error al cargar datos:', localError);
+                    setSyncStatus('Error al cargar datos', 'error');
+                    
+                    // Último fallback
+                    startDate = new Date();
+                    books = [];
+                    weeklyGoal = 1;
+                    updateDisplay();
+                }
             }
         }
 
